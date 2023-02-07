@@ -3,7 +3,7 @@ use std::str::FromStr;
 use regex::{Captures, Regex};
 use lazy_static::lazy_static;
 
-fn extract_group_to_u32(cap: &Captures, name: &str) -> u32 {
+fn capture_group_to_u32(cap: &Captures, name: &str) -> u32 {
     return cap.name(name).map(|it| u32::from_str(it.as_str()).unwrap()).unwrap();
 }
 
@@ -20,10 +20,10 @@ pub fn day04() {
     let mut partial_overlapping_ranges = 0;
     for line in contents.split('\n') {
         RE.captures(line).and_then::<Captures, _>(|cap| {
-            let s1 = extract_group_to_u32(&cap, "start1");
-            let e1 = extract_group_to_u32(&cap, "end1");
-            let s2 = extract_group_to_u32(&cap, "start2");
-            let e2 = extract_group_to_u32(&cap, "end2");
+            let s1 = capture_group_to_u32(&cap, "start1");
+            let e1 = capture_group_to_u32(&cap, "end1");
+            let s2 = capture_group_to_u32(&cap, "start2");
+            let e2 = capture_group_to_u32(&cap, "end2");
 
             if (s1 >= s2 && e1 >= s2 && e1 <= e2) || (s2 >= s1  && s2 <= e2 && e2 <= e1) {
                 fully_contained_ranges += 1;

@@ -13,10 +13,11 @@ pub fn day04() {
     }
     println!("starting day 04");
 
-    let contents = fs::read_to_string("data/04_1_overlapping_assignments.txt")
+    let contents = fs::read_to_string("data/04_demo.txt")
         .expect("Could not read file");
 
-    let mut overlapping_section_pairs = 0;
+    let mut fully_contained_ranges = 0;
+    let mut partial_overlapping_ranges = 0;
     for line in contents.split('\n') {
         RE.captures(line).and_then::<Captures, _>(|cap| {
             let s1 = extract_group_to_u32(&cap, "start1");
@@ -25,10 +26,13 @@ pub fn day04() {
             let e2 = extract_group_to_u32(&cap, "end2");
 
             if (s1 >= s2 && e1 >= s2 && e1 <= e2) || (s2 >= s1  && s2 <= e2 && e2 <= e1) {
-                overlapping_section_pairs += 1;
+                fully_contained_ranges += 1;
+            }
+            if (e1 >= s2 && e1 <= e2) || (e2 >= s1 && e2 <= e1) {
+                partial_overlapping_ranges += 1;
             }
             return None;
         });
     }
-    println!("Pairs of elves with overlapping sections {overlapping_section_pairs}");
+    println!("Pairs of elves with fully contained sections {fully_contained_ranges}, partially overlapping sections {partial_overlapping_ranges}");
 }

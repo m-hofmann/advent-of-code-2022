@@ -9,3 +9,6 @@ edition = "2021"
 # to convert strings to enums (day 02)
 strum = "0.24.1"
 strum_macros = "0.24.1"
+# to parse numbers from strings (day 03)
+regex = "1.7.1"
+lazy_static = "1.4.0"

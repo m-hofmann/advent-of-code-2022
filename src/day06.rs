@@ -11,25 +11,23 @@ pub fn day06() {
     let lines = contents.split('\n');
 
     for line in lines {
-        println!("Signal start marker: {:?}", get_signal_start_pos(line));
+        println!("Part 1: Signal start marker: {:?}", get_signal_start_pos(line.clone(), 4));
+        println!("Part 2: Message start marker: {:?}", get_signal_start_pos(line.clone(), 14));
     }
 }
 
-fn get_signal_start_pos(input: &str) -> usize {
-    if input.len() < 4 {
+fn get_signal_start_pos(input: &str, distinct_chunk_size: usize) -> usize {
+    if input.len() < distinct_chunk_size {
         panic!("Input string too short.");
     }
 
     let chars = input.chars().collect::<Vec<char>>();
-    for i in 3..chars.len() {
-        let mut set : HashSet<char> = HashSet::new();
-        set.insert(chars[i-3]);
-        set.insert(chars[i-2]);
-        set.insert(chars[i-1]);
-        set.insert(chars[i]);
-
-        if set.len() == 4 {
-            return i + 1;
+    for i in (distinct_chunk_size)..chars.len() {
+        let set : HashSet<char> = chars[(i-distinct_chunk_size)..i].iter()
+            .map(|x|*x)
+            .collect();
+        if set.len() == distinct_chunk_size {
+            return i;
         }
     }
     return 0;

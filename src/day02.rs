@@ -49,7 +49,7 @@ pub fn day02() {
         let my = MyShapes::from_str(my_token).unwrap();
 
         let x = (opponent, my);
-        let mut round_score_part1 = match x {
+        let round_score_part1 = match x {
             _ if x == (OpponentShapes::A, MyShapes::Z) || x == (OpponentShapes::B, MyShapes::X) || x == (OpponentShapes::C, MyShapes::Y) => 0 + my as u32,
             _ if opponent as u32 == my as u32 => 3 + my as u32,
             _ => 6 + my as u32

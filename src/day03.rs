@@ -33,12 +33,11 @@ pub fn day03() {
     for chunk in contents.split('\n')
         .collect::<Vec<&str>>()
         .chunks(3) {
-        chunk[0].chars().collect::<HashSet<char>>();
         let a = chunk[0].chars().collect::<HashSet<char>>();
         let b = chunk[1].chars().collect::<HashSet<char>>();
         let c = chunk[2].chars().collect::<HashSet<char>>();
 
-        let mut two_elves_intersection = a.intersection(&b)
+        let two_elves_intersection = a.intersection(&b)
             .map(|it| *it)
             .collect::<HashSet<char>>();
         let mut three_elves_intersection = two_elves_intersection.intersection(&c);

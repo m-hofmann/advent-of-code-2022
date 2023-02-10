@@ -25,37 +25,19 @@ pub fn day05() {
     let mut lines = contents.split('\n');
     // use vec as stacks: "front" is "bottom", "end" is "top"
     let stacks: HashMap<usize, Vec<char>> = parse_input(&mut lines);
-    part1_cratemover9000(&mut lines, stacks);
+    let mut stack_after_part1 = part1_cratemover9000(&mut lines.clone(), stacks.clone());
+    print_top_crates(&mut stack_after_part1);
+    let mut stack_after_part2 = part2_cratemover9001(&mut lines.clone(), stacks.clone());
+    print_top_crates(&mut stack_after_part2);
 }
 
-fn part1_cratemover9000(lines: &mut Split<char>, mut stacks: HashMap<usize, Vec<char>>) {
-    for line in lines {
-        RE.captures(line).and_then::<Captures, _>(|cap| {
-            let count = capture_group_to_u32(&cap, "count");
-            let from_index = capture_group_to_u32(&cap, "from") as usize - 1;
-            let to_index = capture_group_to_u32(&cap, "to") as usize - 1;
-
-            for _ in 0..count {
-                let moved_crate = stacks
-                    .get_mut(&from_index)
-                    .unwrap_or_else(|| panic!("No stack with from index {from_index}"))
-                    .pop()
-                    .unwrap_or_else(|| panic!("Trying to pop from empty stack #{from_index} "));
-                stacks
-                    .get_mut(&to_index)
-                    .unwrap_or_else(|| panic!("Could not access stack {to_index} to push to"))
-                    .push(moved_crate);
-            }
-
-            return None;
-        });
-    }
-    let top_crates = stacks
+fn print_top_crates(stack_after_part1: &mut HashMap<usize, Vec<char>>) {
+    let top_crates_part1 = stack_after_part1
         .iter_mut()
         .sorted_by_key(|x| x.0)
         .map(|(_, v)| v.last().unwrap_or(&' '))
         .collect::<String>();
-    println!("Top crates: {top_crates}");
+    println!("Top crates: {top_crates_part1}");
 }
 
 fn parse_input(lines: &mut Split<char>) -> HashMap<usize, Vec<char>> {
@@ -82,6 +64,53 @@ fn parse_input(lines: &mut Split<char>) -> HashMap<usize, Vec<char>> {
             }
             break;
         }
+    }
+    return stacks;
+}
+
+fn part1_cratemover9000(lines: &mut Split<char>, mut stacks: HashMap<usize, Vec<char>>) -> HashMap<usize, Vec<char>> {
+    for line in lines {
+        RE.captures(line).and_then::<Captures, _>(|cap| {
+            let count = capture_group_to_u32(&cap, "count");
+            let from_index = capture_group_to_u32(&cap, "from") as usize - 1;
+            let to_index = capture_group_to_u32(&cap, "to") as usize - 1;
+
+            for _ in 0..count {
+                let moved_crate = stacks
+                    .get_mut(&from_index)
+                    .unwrap_or_else(|| panic!("No stack with from index {from_index}"))
+                    .pop()
+                    .unwrap_or_else(|| panic!("Trying to pop from empty stack #{from_index} "));
+                stacks
+                    .get_mut(&to_index)
+                    .unwrap_or_else(|| panic!("Could not access stack {to_index} to push to"))
+                    .push(moved_crate);
+            }
+
+            return None;
+        });
+    }
+    return stacks;
+
+}
+
+fn part2_cratemover9001(lines: &mut Split<char>, mut stacks: HashMap<usize, Vec<char>>) -> HashMap<usize, Vec<char>> {
+    for line in lines {
+        RE.captures(line).and_then::<Captures, _>(|cap| {
+            let count = capture_group_to_u32(&cap, "count") as usize;
+            let from_index = capture_group_to_u32(&cap, "from") as usize - 1;
+            let to_index = capture_group_to_u32(&cap, "to") as usize - 1;
+            let source_stack = stacks
+                    .get_mut(&from_index)
+                    .unwrap_or_else(|| panic!("No stack with from index {from_index}"));
+            let mut moved_crates = source_stack.split_off(source_stack.len() - count);
+
+            stacks.get_mut(&to_index)
+                .unwrap_or_else(|| panic!("Could not access stack {to_index} to push to"))
+                .append(&mut moved_crates);
+
+            return None;
+        });
     }
     return stacks;
 }

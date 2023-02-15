@@ -6,6 +6,7 @@ mod day03;
 mod day04;
 mod day05;
 mod day06;
+mod day07;
 use std::env;
 use day01::day01;
 use day02::day02;
@@ -13,6 +14,7 @@ use day03::day03;
 use day04::day04;
 use day05::day05;
 use day06::day06;
+use day07::day07;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -24,6 +26,7 @@ fn main() {
         "04" => day04(),
         "05" => day05(),
         "06" => day06(),
+        "07" => day07(),
         other => println!("Invalid day number {other} as first parameter")
     }
 }

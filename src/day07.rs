@@ -78,7 +78,7 @@ pub fn day07() {
             LS_DIR.captures(line).and_then::<Captures, _>(|cap| {
                 let dir = cap.name("dir").unwrap().as_str();
                 println!("ls dir {dir}");
-                let child = Rc::new(RefCell::new(Node::new(String::from(dir), true, 0, None)));
+                let child = Rc::new(RefCell::new(Node::new(String::from(dir), true, 0, Some(Rc::clone(&current_node)))));
                 current_node.deref().borrow_mut().children.push(Rc::clone(&child));
                 return None;
             });
@@ -86,7 +86,8 @@ pub fn day07() {
             LS_FILE.captures(line).and_then::<Captures, _>(|cap| {
                 let filename = cap.name("name").unwrap().as_str();
                 let filesize = cap.name("size").map(|it| usize::from_str(it.as_str())).unwrap().unwrap();
-                println!("ls file {filename}, size {filesize}");
+                let child = Rc::new(RefCell::new(Node::new(String::from(filename), true, filesize, Some(Rc::clone(&current_node)))));
+                current_node.deref().borrow_mut().children.push(Rc::clone(&child));
                 return None;
             });
         }

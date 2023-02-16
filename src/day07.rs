@@ -5,7 +5,7 @@ use regex::{Captures, Regex};
 use std::collections::HashSet;
 use std::fs;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::str::FromStr;
 use itertools::Itertools;
 
@@ -16,12 +16,12 @@ struct Node {
     size: Box<usize>,
     // TODO I'm pretty sure there is a memory leak somewhere in here, RefCounts seem to go up only
     // https://doc.rust-lang.org/book/ch15-06-reference-cycles.html
-    parent: Option<Rc<RefCell<Node>>>,
+    parent: Weak<RefCell<Node>>,
     children: Vec<Rc<RefCell<Node>>>,
 }
 
 impl Node {
-    fn new(name: String, is_dir: bool, size: usize, parent: Option<Rc<RefCell<Node>>>) -> Node {
+    fn new(name: String, is_dir: bool, size: usize, parent: Weak<RefCell<Node>>) -> Node {
         return Node {
             name,
             is_dir: Box::new(is_dir),
@@ -47,7 +47,7 @@ pub fn day07() {
 
     let contents = fs::read_to_string("data/07_demo.txt").expect("Could not read file");
 
-    let root_node = Rc::new(RefCell::new(Node::new(String::from("/"), true, 0, None)));
+    let root_node = Rc::new(RefCell::new(Node::new(String::from("/"), true, 0, Weak::new())));
     let mut current_node: Rc<RefCell<Node>> = Rc::clone(&root_node);
 
     for line in contents.split('\n') {
@@ -59,7 +59,7 @@ pub fn day07() {
                     "/" => current_node = Rc::clone(&root_node),
                     ".." => {
                         let current_rc = Rc::clone(&current_node);
-                        current_node = Rc::clone(current_rc.deref().borrow().parent.as_ref().unwrap());
+                        current_node = Rc::clone(&current_rc.deref().borrow().parent.upgrade().unwrap());
                     },
                     other => {
                         // the tree implementation is liberally "borrowed" from https://applied-math-coding.medium.com/a-tree-structure-implemented-in-rust-8344783abd75
@@ -75,7 +75,7 @@ pub fn day07() {
             LS_DIR.captures(line).and_then::<Captures, _>(|cap| {
                 let dir = cap.name("dir").unwrap().as_str();
                 println!("ls dir {dir}");
-                let child = Rc::new(RefCell::new(Node::new(String::from(dir), true, 0, Some(Rc::clone(&current_node)))));
+                let child = Rc::new(RefCell::new(Node::new(String::from(dir), true, 0, Rc::downgrade(&current_node))));
                 current_node.deref().borrow_mut().children.push(Rc::clone(&child));
                 return None;
             });
@@ -84,13 +84,14 @@ pub fn day07() {
                 let filename = cap.name("name").unwrap().as_str();
                 let filesize = cap.name("size").map(|it| usize::from_str(it.as_str())).unwrap().unwrap();
                 println!("ls file {filename}, size {filesize}");
-                let child = Rc::new(RefCell::new(Node::new(String::from(filename), false, filesize, Some(Rc::clone(&current_node)))));
+                let child = Rc::new(RefCell::new(Node::new(String::from(filename), false, filesize, Rc::downgrade(&current_node))));
                 current_node.deref().borrow_mut().children.push(Rc::clone(&child));
                 return None;
             });
         }
     }
 
-    // TODO root node count is 5 for AoC day 07 demo, should be 3!?
-    println!("Root node Rc is {:?}", Rc::strong_count(&root_node));
+    assert_eq!(Rc::strong_count(&root_node), 1, "Root Node Rc::strong_count not 1, possible memory leak?");
+    println!("Root node Rc::strong_count is {:?}, Rc::weak_count {:?}", Rc::strong_count(&root_node), Rc::weak_count(&root_node));
+    println!("Tree {:?}", root_node);
 }

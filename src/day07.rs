@@ -1,21 +1,16 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
-use std::collections::HashSet;
 use std::fs;
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 use std::str::FromStr;
-use itertools::Itertools;
 
 #[derive(Debug)]
 struct Node {
     name: String,
     is_dir: Box<bool>,
     size: Box<usize>,
-    // TODO I'm pretty sure there is a memory leak somewhere in here, RefCounts seem to go up only
-    // https://doc.rust-lang.org/book/ch15-06-reference-cycles.html
     parent: Weak<RefCell<Node>>,
     children: Vec<Rc<RefCell<Node>>>,
 }
@@ -30,9 +25,36 @@ impl Node {
             children: vec![],
         };
     }
+}
 
-    pub fn add(mut self, node: Rc<RefCell<Node>>) {
-        self.children.push(node);
+/*
+ * Returns a sum of
+ * - subdirectory sizes for subdirectories which are leq threshold of size
+ * - the files in this directory if the sum of their sizes is leq threshold
+ */
+fn sum_below(threshold: usize, node: Rc<RefCell<Node>>) -> usize {
+    let children = Rc::clone(&node);
+
+    let mut file_accu = 0;
+    let child_dir_sizes : usize = children.deref().borrow().children.iter()
+        .map(|it| {
+            let node = it.deref().borrow();
+            match node.is_dir.deref() {
+                true => sum_below(threshold, Rc::clone(it)),
+                false => {
+                    match *node.size <= threshold {
+                        true =>  {
+                            file_accu += * node.size;
+                            return 0;
+                        },
+                        false => 0
+                    }
+                }}})
+        .sum();
+    if file_accu <= threshold {
+        return file_accu + child_dir_sizes
+    } else {
+        return file_accu
     }
 }
 
@@ -94,4 +116,7 @@ pub fn day07() {
     assert_eq!(Rc::strong_count(&root_node), 1, "Root Node Rc::strong_count not 1, possible memory leak?");
     println!("Root node Rc::strong_count is {:?}, Rc::weak_count {:?}", Rc::strong_count(&root_node), Rc::weak_count(&root_node));
     println!("Tree {:?}", root_node);
+
+    let sum = sum_below(100000, root_node);
+    println!("Sum of files below size 100000: {:?}", sum);
 }

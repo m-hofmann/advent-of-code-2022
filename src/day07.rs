@@ -32,30 +32,21 @@ impl Node {
  * - subdirectory sizes for subdirectories which are leq threshold of size
  * - the files in this directory if the sum of their sizes is leq threshold
  */
-fn sum_below(threshold: usize, node: Rc<RefCell<Node>>) -> usize {
+fn dir_sizes(accu: &mut Vec<usize>, node: Rc<RefCell<Node>>) -> usize {
     let children = Rc::clone(&node);
 
-    let mut file_accu = 0;
-    let child_dir_sizes : usize = children.deref().borrow().children.iter()
+    let mut dir_accu = 0;
+    let file_sizes : usize = children.deref().borrow().children.iter()
         .map(|it| {
             let node = it.deref().borrow();
             match node.is_dir.deref() {
-                true => sum_below(threshold, Rc::clone(it)),
-                false => {
-                    match *node.size <= threshold {
-                        true =>  {
-                            file_accu += * node.size;
-                            return 0;
-                        },
-                        false => 0
-                    }
-                }}})
+                true => {dir_accu += dir_sizes(accu, Rc::clone(it)); return 0;},
+                false => *node.size
+                }})
         .sum();
-    if file_accu <= threshold {
-        return file_accu + child_dir_sizes
-    } else {
-        return file_accu
-    }
+    let total_size = file_sizes + dir_accu;
+    accu.push(total_size);
+    return total_size;
 }
 
 pub fn day07() {
@@ -67,7 +58,7 @@ pub fn day07() {
         static ref LS_FILE: Regex = Regex::new(r"(?P<size>\d+) (?P<name>[\w.]+)").unwrap();
     }
 
-    let contents = fs::read_to_string("data/07_demo.txt").expect("Could not read file");
+    let contents = fs::read_to_string("data/07_shell_output.txt").expect("Could not read file");
 
     let root_node = Rc::new(RefCell::new(Node::new(String::from("/"), true, 0, Weak::new())));
     let mut current_node: Rc<RefCell<Node>> = Rc::clone(&root_node);
@@ -117,6 +108,8 @@ pub fn day07() {
     println!("Root node Rc::strong_count is {:?}, Rc::weak_count {:?}", Rc::strong_count(&root_node), Rc::weak_count(&root_node));
     println!("Tree {:?}", root_node);
 
-    let sum = sum_below(100000, root_node);
-    println!("Sum of files below size 100000: {:?}", sum);
+    let mut directory_sizes : Vec<usize> = Vec::new();
+    dir_sizes(&mut directory_sizes, root_node);
+    let total_size: usize = directory_sizes.iter().filter(|&it| *it <= 100000).sum();
+    println!("Sum of files below size 100000: {:?}", total_size);
 }

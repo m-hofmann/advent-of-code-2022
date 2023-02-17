@@ -5,6 +5,7 @@ use std::fs;
 use std::ops::Deref;
 use std::rc::{Rc, Weak};
 use std::str::FromStr;
+use itertools::Itertools;
 
 #[derive(Debug)]
 struct Node {
@@ -109,7 +110,23 @@ pub fn day07() {
     println!("Tree {:?}", root_node);
 
     let mut directory_sizes : Vec<usize> = Vec::new();
-    dir_sizes(&mut directory_sizes, root_node);
+    let size_used  =dir_sizes(&mut directory_sizes, root_node);
     let total_size: usize = directory_sizes.iter().filter(|&it| *it <= 100000).sum();
-    println!("Sum of files below size 100000: {:?}", total_size);
+    println!("Part 1: Sum of files below size 100000: {:?}", total_size);
+
+    let total_disk_space = 70000000;
+    let needed_free = 30000000;
+    let current_free = total_disk_space - size_used;
+    let need_to_be_freed = needed_free - current_free;
+
+    let dir_size_to_del = directory_sizes.iter()
+        .filter(|&it| *it >= need_to_be_freed)
+        .sorted()
+        .next()
+        .unwrap();
+
+    println!("Current free disk space {:?}, need to free {:?}, size of smallest directory to delete is {:?}",
+             current_free,
+             need_to_be_freed,
+             dir_size_to_del)
 }

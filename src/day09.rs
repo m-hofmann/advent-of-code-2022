@@ -47,16 +47,20 @@ fn print_debug_grid2(s : (i32, i32), rope: &Vec<(i32, i32)>) {
             for (i, val) in rope.iter().enumerate() {
                 if (x, y) == *val {
                     if i == 0 {
-                        print!("H");
+                        print!("H")
                     } else {
-                        print!("{i}");
+                        print!("{i}")
                     }
                     was_rope_part = true;
                     break;
                 }
             }
             if !was_rope_part {
-                print!(".");
+                if (x, y) == s {
+                    print!("s")
+                } else {
+                    print!(".")
+                }
             }
         }
         println!()

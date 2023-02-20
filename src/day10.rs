@@ -1,5 +1,6 @@
 use std::fs;
 use std::str::{FromStr};
+use itertools::Itertools;
 
 pub fn day10() {
 
@@ -33,6 +34,20 @@ pub fn day10() {
         .filter(|(i, _)| interesting.contains(i))
         .map(|(i, &x)| i as i32 * x)
         .sum();
-    println!("Sum of signal strengths is {:?}", cycle_sum)
+    println!("Sum of signal strengths is {:?}", cycle_sum);
 
+    let to_draw = cycle_x.iter().skip(1).enumerate()
+        .map(|(p, x)| ((p%40) as i32, *x))
+        .map(|(p, x)| {
+            if x-1 <= p && p < x+2 {
+                '#'
+            } else {
+                '.'
+            }
+        })
+        .collect::<String>();
+
+    for chunk in to_draw.chars().into_iter().chunks(40).into_iter() {
+        println!("{:?}", chunk.collect::<String>())
+    }
 }

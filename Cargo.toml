@@ -14,3 +14,5 @@ regex = "1.7.1"
 lazy_static = "1.4.0"
 # sort iter over HashMap by keys (day 05)
 itertools = "0.10.5"
+# bigint support (day 11)
+ibig = "0.3.6"

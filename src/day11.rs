@@ -3,15 +3,16 @@ use regex::{Captures, Regex};
 use std::any::Any;
 use std::str::FromStr;
 use std::{fmt, fs};
+use ibig::{UBig, ubig};
 use itertools::Itertools;
 
 struct Monkey {
-    items: Box<Vec<u32>>,
+    items: Box<Vec<UBig>>,
     // worry level change upon item inspection
-    operation: Box<dyn Fn(u32) -> u32>,
+    operation: Box<dyn Fn(&UBig) -> UBig>,
     // worry level projected to monkey index
-    test: Box<dyn Fn(u32) -> usize>,
-    inspected_count : u32,
+    test: Box<dyn Fn(&UBig) -> usize>,
+    inspected_count : u128,
 }
 
 impl fmt::Debug for Monkey {
@@ -36,8 +37,8 @@ pub fn day11() {
     let lines = contents.split('\n');
 
     let mut monkeys: Vec<Monkey> = vec![];
-    let mut parse_items: Vec<u32> = vec![];
-    let mut parse_operation: Box<dyn Fn(u32) -> u32> = Box::new(|i: u32| i);
+    let mut parse_items: Vec<UBig> = vec![];
+    let mut parse_operation: Box<dyn Fn(&UBig) -> UBig> = Box::new(|i: &UBig| i.clone());
     // test function is specified on three separate lines
     // to avoid writing a recursive descent parser, we parse each line separately and assemble
     // the function upon creating the Monkey object
@@ -54,7 +55,7 @@ pub fn day11() {
                 monkeys.push(Monkey {
                     items: Box::new(parse_items.clone()),
                     operation: parse_operation,
-                    test: Box::new(move |i: u32| {
+                    test: Box::new(move |i: &UBig| {
                         return if i % divisor.unwrap() == 0 {
                             if_true_monkey.unwrap()
                         } else {
@@ -64,7 +65,7 @@ pub fn day11() {
                     inspected_count: 0,
                 });
                 // avoid moving same Fn twice
-                parse_operation = Box::new(|i: u32| i);
+                parse_operation = Box::new(|i: &UBig| i.clone());
             }
         } else if line.starts_with("Monkey") {
             // skip, we do counting implicitly
@@ -74,25 +75,25 @@ pub fn day11() {
                 .strip_prefix("Starting items: ")
                 .unwrap()
                 .split(", ")
-                .map(|it| u32::from_str(it).unwrap())
-                .collect::<Vec<u32>>();
+                .map(|it| UBig::from_str(it).unwrap())
+                .collect::<Vec<UBig>>();
         } else if line.trim().starts_with("Operation: ") {
             OPERATION_PATTERN
                 .captures(line.trim())
                 .and_then::<Captures, _>(|cap| {
                     parse_operation = match cap.name("operator").unwrap().as_str() {
                         "+" => match cap.name("operand").unwrap().as_str() {
-                            "old" => Box::new(|i: u32| i + i),
+                            "old" => Box::new(|i: &UBig| i + i),
                             other => {
-                                let tmp = u32::from_str(other).unwrap();
-                                Box::new(move |i: u32| i + &tmp)
+                                let tmp = UBig::from_str(other).unwrap();
+                                Box::new(move |i: &UBig| i + &tmp)
                             }
                         },
                         "*" => match cap.name("operand").unwrap().as_str() {
-                            "old" => Box::new(|i: u32| i * i),
+                            "old" => Box::new(|i: &UBig| i * i),
                             other => {
-                                let tmp = u32::from_str(other).unwrap();
-                                Box::new(move |i: u32| i * &tmp)
+                                let tmp = UBig::from_str(other).unwrap();
+                                Box::new(move |i: &UBig| i * &tmp)
                             }
                         },
                         other => panic!("Unknown operator {other}"),
@@ -122,31 +123,7 @@ pub fn day11() {
 
     println!("Parsed {:?} monkeys: {:?}", monkeys.len(), monkeys);
 
-    for round in 1..=20 {
-        for i in 0..monkeys.len() {
-            println!("Monkey {:?}:", i);
-            let monkey = monkeys.get_mut(i).unwrap();
-            let throws: Vec<(usize, u32)> = monkey.items.iter()
-                .map(|item| {
-                    println!("  Monkey inspects an item with a worry level of {item}.");
-                    monkey.inspected_count += 1;
-                    let new_worry: u32 = (monkey.operation)(*item) / 3;
-                    let target_monkey: usize = (monkey.test)(new_worry);
-                    println!("  Item with worry level {new_worry} is thrown to monkey {target_monkey}");
-                    (target_monkey, new_worry)
-                })
-                .collect::<Vec<(usize, u32)>>();
-            monkey.items = Box::new(vec![]);
-            for (target, item) in throws {
-                monkeys[target].items.push(item);
-            }
-        }
-
-        println!("After round {round}, the monkeys are holding items with these worry levels:");
-        for (i, monkey) in monkeys.iter().enumerate() {
-            println!("Monkey {:?}: {:?}", i, monkey.items)
-        }
-    }
+    simulate_n_rounds(&mut monkeys, 20, &ubig!(3));
 
     let monkey_business_level = monkeys.iter()
         .map(|monkey| monkey.inspected_count)
@@ -156,5 +133,46 @@ pub fn day11() {
         .inspect(|&it| println!("Inspection count {it}"))
         .fold(1, |acc, elem| acc * elem);
 
-    println!("Level of monkey business: {monkey_business_level}")
+    println!("Part 1: Level of monkey business: {monkey_business_level}");
+
+
+    // as monkeys are not cloneable, we cannot use clones of the monkey vector
+    // for each part of the riddle
+    // therefore, reset inspected count here
+    for i in 0..monkeys.len() {
+        monkeys[i].inspected_count = 0;
+    }
+
+    simulate_n_rounds(&mut monkeys, 1000, &ubig!(1));
+
+    let monkey_business_level = monkeys.iter()
+        .map(|monkey| monkey.inspected_count)
+        .sorted()
+        .rev()
+        .take(2)
+        .inspect(|&it| println!("Inspection count {it}"))
+        .fold(1 as u128, |acc, elem| acc * elem as u128);
+
+    println!("Part 2: Level of monkey business: {monkey_business_level}");
+
+}
+
+fn simulate_n_rounds(monkeys: &mut Vec<Monkey>, n: u32, divisor: &UBig) {
+    for _ in 1..=n {
+        for i in 0..monkeys.len() {
+            let monkey = monkeys.get_mut(i).unwrap();
+            let throws: Vec<(usize, UBig)> = monkey.items.iter()
+                .map(|item| {
+                    monkey.inspected_count += 1;
+                    let new_worry: UBig = (monkey.operation)(item)/divisor;
+                    let target_monkey: usize = (monkey.test)(&new_worry);
+                    (target_monkey, new_worry)
+                })
+                .collect::<Vec<(usize, UBig)>>();
+            monkey.items = Box::new(vec![]);
+            for (target, item) in throws {
+                monkeys[target].items.push(item);
+            }
+        }
+    }
 }

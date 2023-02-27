@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
-use itertools::Itertools;
+use itertools::{Itertools, min};
 
 fn get_normalized_value(c: char) -> i32 {
     match c {
@@ -33,7 +33,7 @@ fn is_valid_chardiff(from: &(usize, usize), to: &(usize, usize), grid: &Vec<Vec<
     if diff == 1 {
         return true;
     } else if diff > 1 {
-        return false
+        return false;
     } else {
         // need to read instructions carefully or spend hours debugging:
         // (This also means that the elevation of the destination square can be much lower than the elevation of your current square.)
@@ -104,6 +104,8 @@ pub fn day12() {
         grid.push(line.chars().into_iter().collect::<Vec<char>>())
     }
 
+    // to simplify addressing nodes, we use a tuple of vec indices as coordinates
+    // (y_axis, x_axis) in
     let mut start: (usize, usize) = (0, 0);
     let mut target: (usize, usize) = (0, 0);
 
@@ -119,14 +121,38 @@ pub fn day12() {
         println!()
     }
 
-    // to simplify addressing nodes, we use a tuple of vec indices as coordinates
-    // (y_axis, x_axis) in
+    let cost = part1_shortest_path(&grid, &start, &target);
+
+    println!("Cost of reaching E: {:?}", cost.get(&target).unwrap());
+
+    // just brute force it
+    let mut min_dist_to_a = u32::MAX;
+    for (y, line) in grid.iter().enumerate() {
+        for (x, c) in line.iter().enumerate() {
+            if *c == 'a' {
+                let cost = part1_shortest_path(&grid, &(y, x), &target);
+                min_dist_to_a = match cost.get(&target)  {
+                    Some(&dist) => dist.min(min_dist_to_a),
+                    _ => min_dist_to_a
+                }
+            }
+        }
+
+        println!("Minimum distance to reach any a {:?}", min_dist_to_a);
+    }
+}
+
+fn part1_shortest_path(
+    grid: &Vec<Vec<char>>,
+    start: &(usize, usize),
+    target: &(usize, usize),
+) -> HashMap<(usize, usize), u32> {
     let mut candidates: HashSet<(usize, usize)> = HashSet::new();
-    candidates.insert(start);
-    let mut visited : HashSet<(usize, usize)> = HashSet::new();
+    candidates.insert(*start);
+    let mut visited: HashSet<(usize, usize)> = HashSet::new();
     let mut cheapest_predecessor: HashMap<(usize, usize), (usize, usize)> = HashMap::new();
     let mut cost: HashMap<(usize, usize), u32> = HashMap::new();
-    cost.insert(start, 0);
+    cost.insert(*start, 0);
 
     // graphical map of movement
     let mut map = vec![vec!['.'; grid[0].len()]; grid.len()];
@@ -142,9 +168,10 @@ pub fn day12() {
             .map(|it| ((it), cost.get(it).unwrap_or(&u32::MAX)))
             .sorted_by_key(|x| x.1)
             .map(|x| x.0)
-            .next().unwrap();
+            .next()
+            .unwrap();
 
-        if *current == target {
+        if current == target {
             println!("Reached target");
             break;
         }
@@ -155,9 +182,7 @@ pub fn day12() {
         for neighbor in neighbors(current, &grid) {
             let valid_field = is_valid_chardiff(current, &neighbor, &grid);
             let new_dist = cost[current] + 1;
-            if new_dist < *cost.get(&neighbor).unwrap_or(&u32::MAX)
-                && valid_field
-                {
+            if new_dist < *cost.get(&neighbor).unwrap_or(&u32::MAX) && valid_field {
                 map[current.0][current.1] = coord_to_direction(current, &neighbor);
                 cheapest_predecessor.insert(neighbor, *current);
                 cost.insert(neighbor, new_dist);
@@ -166,11 +191,12 @@ pub fn day12() {
         }
     }
 
+    /*
     println!("All shortest paths:");
     print_map(&map);
     println!("\nShortest path S->E:");
-    let map_to_target = reconstruct_shortest_path(&start, &target,& cheapest_predecessor, &grid);
+    let map_to_target = reconstruct_shortest_path(&start, &target, &cheapest_predecessor, &grid);
     print_map(&map_to_target);
-
-    println!("Cost of reaching E: {:?}", cost.get(&target).unwrap());
+     */
+    cost
 }

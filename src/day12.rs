@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
-use itertools::{Itertools, min};
+use itertools::{Itertools};
 
 fn get_normalized_value(c: char) -> i32 {
     match c {

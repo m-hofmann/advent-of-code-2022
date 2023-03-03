@@ -1,71 +1,64 @@
 use std::fs;
 use std::str::Split;
 use itertools::Itertools;
+use crate::day13::Token::{List, Num};
 
-fn compare_stack_based(left: &mut Vec<char>, right: &mut Vec<char>) -> bool {
 
-    while !left.is_empty() && !right.is_empty() {
-        let l = left.pop().unwrap();
-        let r = right.pop().unwrap();
+#[derive(Debug)]
+enum Token {
+    Num(u32),
+    List(Box<Vec<Token>>)
+}
 
-        if l == '[' && r.is_numeric() {
-            right.push(']');
-            right.push(r);
-        } else if r == '[' && l.is_numeric() {
-            left.push(']');
-            left.push(l);
-        } else if l.is_numeric() && r.is_numeric() {
-            let l_u32 = l.to_digit(10).unwrap();
-            let r_u32 = r.to_digit(10).unwrap();
-            //println!("  - Compare {} vs {}", l_u32, r_u32);
-            if l_u32 > r_u32 {
-                //println!("    - Right side is smaller, so inputs are not in correct order.");
-                return false;
-            } else if l_u32 < r_u32 {
-                //println!("    - Left side is smaller, so inputs are in correct order.");
-                return true;
-            }
-        } else if l == ',' && l == r {
-            // pass, comma
-        } else if l == '[' && l == r {
-            // pass, list start
-        } else if l == ']' && r != ']' {
-            // left is smaller
-            return true;
-        } else {
-            //println!("Ignoring l {}, r {}", l, r);
+fn parse_list(s: &mut String) -> Vec<Token> {
+    let mut stack = vec![];
+    let mut buf = String::new();
+
+    while let Some(c) = s.pop() {
+        match c {
+            '[' => stack.push(List(Box::new(parse_list(s)))),
+            ']' => {
+                match buf.parse() {
+                    Ok(num) => stack.push(Num(num)),
+                    _ => {}
+                }
+                return stack;
+            },
+            ',' => {
+                if let Ok(number) = buf.parse::<u32>() {
+                    stack.push(Num(number));
+                    buf = String::new();
+                }
+            },
+            c => {
+                buf.push(c);
+            },
+            other => panic!("Cannot parse char {}", other),
         }
     }
-    if left.is_empty() {
-        return true;
-    } else {
-        return false;
-    }
+
+    return stack;
 }
 
 pub fn day13() {
     println!("starting day 11");
 
-    let contents = fs::read_to_string("data/13_input.txt").expect("Could not read file");
+    let contents = fs::read_to_string("data/13_demo.txt").expect("Could not read file");
     let lines = contents.split('\n');
 
     let mut pair_cnt = 1;
     let mut correct_indices_count = 0;
     for (left_raw, right_raw) in lines.filter(|&it| !it.is_empty()).tuples::<(&str, &str)>() {
-        let mut left = String::from(left_raw).chars().rev().collect::<Vec<char>>();
-        let mut right = String::from(right_raw).chars().rev().collect::<Vec<char>>();
+        let mut left_rev = String::from(left_raw).chars().rev().collect();
+        let mut right_rev = String::from(right_raw).chars().rev().collect();
+        let left = parse_list(&mut left_rev);
+        let right = parse_list(&mut right_rev);
 
-        println!("== Pair {} == ", pair_cnt);
-        println!("- Compare {} vs {}", left_raw, right_raw);
 
-        let result = compare_stack_based(&mut left, &mut right);
-        match result {
-            true => {
-                println!("Correct order");
-                correct_indices_count += pair_cnt;
-            },
-            false => println!("Incorrect order")
-        }
+        println!("left {:?}", left_raw);
+        println!("left (parsed) {:?}", left);
+        println!("right {:?}", right_raw);
+        println!("right (parsed) {:?}", right);
 
         pair_cnt += 1;
     }

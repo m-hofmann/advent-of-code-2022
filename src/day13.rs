@@ -78,7 +78,6 @@ fn parse_list(s: &mut String) -> Token {
             c => {
                 buf.push(c);
             }
-            other => panic!("Cannot parse char {}", other),
         }
     }
 
@@ -109,7 +108,7 @@ pub fn day13() {
         let res = &left.partial_cmp(&right);
         match res {
             Some(cmp) => match cmp {
-                x @ Less | x @ Ordering::Equal => {
+                _x @ Less | _x @ Ordering::Equal => {
                     println!("<: Are in correct order");
                     correct_indices_count += pair_cnt;
                 }
@@ -142,9 +141,9 @@ pub fn day13() {
     let mut decoder_key = 1;
     for (i, elem) in lists.clone().iter().enumerate() {
         if *elem == divider_2 {
-            decoder_key *= (i + 1);
+            decoder_key *= i + 1;
         } else if *elem == divider_6 {
-            decoder_key *= (i + 1);
+            decoder_key *= i + 1;
         }
     }
     println!("Part 2: Decoder key is {:?}", decoder_key);

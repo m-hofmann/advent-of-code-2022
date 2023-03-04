@@ -50,7 +50,7 @@ fn print_map(map: &Vec<Vec<char>>) {
     }
 }
 
-fn reconstruct_shortest_path(
+fn _reconstruct_shortest_path(
     start: &(usize, usize),
     target: &(usize, usize),
     cheapest_predecessor: &HashMap<(usize, usize), (usize, usize)>,

@@ -1,12 +1,47 @@
 use crate::day13::Token::{List, Num};
 use itertools::Itertools;
+use std::cmp::Ordering;
+use std::cmp::Ordering::{Greater, Less};
 use std::fs;
-use std::str::Split;
 
-#[derive(Debug)]
+#[derive(Debug, Ord, Eq, PartialEq, Clone)]
 enum Token {
     Num(u32),
     List(Box<Vec<Token>>),
+}
+
+impl PartialOrd for Token {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        return match (self, other) {
+            (List(left_list), List(right_list)) => {
+                let mut li = left_list.iter();
+                let mut ri = right_list.iter();
+
+                loop {
+                    match (li.next(), ri.next()) {
+                        (Some(l), Some(r)) => match l.partial_cmp(r) {
+                            Some(ordering) => return Some(ordering),
+                            None => {}
+                        },
+                        (None, Some(_)) => return Some(Less),
+                        (Some(_), None) => return Some(Greater),
+                        (None, None) => return None,
+                    }
+                }
+            }
+            (List(_), Num(r)) => self.partial_cmp(&List(Box::new(vec![Num(*r)]))),
+            (Num(l), List(_)) => List(Box::new(vec![Num(*l)])).partial_cmp(&other),
+            (Num(l), Num(r)) => {
+                if l < r {
+                    Some(Less)
+                } else if l == r {
+                    None
+                } else {
+                    Some(Greater)
+                }
+            }
+        };
+    }
 }
 
 fn parse_input(s: &String) -> Token {
@@ -50,48 +85,19 @@ fn parse_list(s: &mut String) -> Token {
     return List(Box::new(stack));
 }
 
-fn compare(left: &Token, right: &Token) -> Option<bool> {
-    return match (left, right) {
-        (List(left_list), List(right_list)) => {
-            let mut li = left_list.iter();
-            let mut ri = right_list.iter();
-
-            loop {
-                match (li.next(), ri.next()) {
-                    (Some(l), Some(r)) => match compare(l, r) {
-                        Some(true) => return Some(true),
-                        Some(false) => return Some(false),
-                        None => {},
-                    },
-                    (None, Some(_)) => return Some(true),
-                    (Some(_), None) => return Some(false),
-                    (None, None) => return None,
-                }
-            }
-        }
-        (List(_), Num(r)) => compare(left, &List(Box::new(vec![Num(*r)]))),
-        (Num(l), List(_)) => compare(&List(Box::new(vec![Num(*l)])), right),
-        (Num(l), Num(r)) => {
-            if l < r {
-                Some(true)
-            } else if l == r {
-                None
-            } else {
-                Some(false)
-            }
-        }
-    };
-}
-
 pub fn day13() {
     println!("starting day 11");
 
-    let contents = fs::read_to_string("data/13_input.txt").expect("Could not read file");
+    let contents = fs::read_to_string("data/13_demo.txt").expect("Could not read file");
     let lines = contents.split('\n');
 
     let mut pair_cnt = 1;
     let mut correct_indices_count = 0;
-    for (left_raw, right_raw) in lines.filter(|&it| !it.is_empty()).tuples::<(&str, &str)>() {
+    for (left_raw, right_raw) in lines
+        .clone()
+        .filter(|&it| !it.is_empty())
+        .tuples::<(&str, &str)>()
+    {
         let left = parse_input(&String::from(left_raw));
         let right = parse_input(&String::from(right_raw));
         println!("== Pair {} ==", pair_cnt);
@@ -100,18 +106,34 @@ pub fn day13() {
         //println!("left (parsed) {:?}", left);
         //bprintln!("right {:?}", right_raw);
         //println!("right (parsed) {:?}", right);
-        let res = compare(&left, &right);
+        let res = &left.partial_cmp(&right);
         match res {
-            Some(true) => {
-                println!("Are in right order");
-                correct_indices_count += pair_cnt;
-            }
-            Some(false) => println!("Not in right order"),
+            Some(cmp) => match cmp {
+                x @ Less | x @ Ordering::Equal => {
+                    println!("<: Are in correct order");
+                    correct_indices_count += pair_cnt;
+                }
+                Greater => println!(">: Not in correct order"),
+            },
             None => panic!("Comparison failed"),
         }
 
         pair_cnt += 1;
     }
 
-    println!("Sum of indices of correct pairs {}", correct_indices_count);
+    println!(
+        "Part 1: Sum of indices of correct pairs {}",
+        correct_indices_count
+    );
+
+    let divider_2 = List(Box::new(vec![List(Box::new(vec![Num(2)]))]));
+    let divider_6 = List(Box::new(vec![List(Box::new(vec![Num(6)]))]));
+    let mut lists = vec![divider_2.clone(), divider_6.clone()];
+
+    for line in lines.clone().filter(|&l| !l.is_empty()) {
+        lists.push(parse_input(&mut String::from(line)));
+    }
+
+    lists.sort();
+
 }

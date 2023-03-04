@@ -88,7 +88,7 @@ fn parse_list(s: &mut String) -> Token {
 pub fn day13() {
     println!("starting day 11");
 
-    let contents = fs::read_to_string("data/13_demo.txt").expect("Could not read file");
+    let contents = fs::read_to_string("data/13_input.txt").expect("Could not read file");
     let lines = contents.split('\n');
 
     let mut pair_cnt = 1;
@@ -122,7 +122,7 @@ pub fn day13() {
     }
 
     println!(
-        "Part 1: Sum of indices of correct pairs {}",
+        "Part 1: Sum of indices of correct pairs is {}",
         correct_indices_count
     );
 
@@ -136,4 +136,16 @@ pub fn day13() {
 
     lists.sort();
 
+    assert!(divider_2 < divider_6);
+    assert!(divider_6 > divider_2);
+
+    let mut decoder_key = 1;
+    for (i, elem) in lists.clone().iter().enumerate() {
+        if *elem == divider_2 {
+            decoder_key *= (i + 1);
+        } else if *elem == divider_6 {
+            decoder_key *= (i + 1);
+        }
+    }
+    println!("Part 2: Decoder key is {:?}", decoder_key);
 }

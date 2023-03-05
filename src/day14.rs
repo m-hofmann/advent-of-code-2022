@@ -1,13 +1,13 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
-use std::fs;
+use std::{fs};
 use std::str::Split;
 
-#[derive(Debug, Hash)]
+#[derive(Debug, Hash, Clone)]
 struct Coord {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
 }
 
 impl PartialEq<Self> for Coord {
@@ -33,19 +33,42 @@ pub fn day14() {
     let contents = fs::read_to_string("data/14_input.txt").expect("Could not read file");
 
     let lines = contents.split('\n');
-    let (y_abyss_threshold, mut cave) = build_cave(lines);
+    let (y_abyss_threshold, mut cave) = build_cave(lines.clone());
 
-    cave.insert(Coord { x: 500, y: 0 }, Material::Source);
     print_cave(&cave);
-    let placed_sand_units = simulate_sand_falling(y_abyss_threshold, &mut cave);
+    let placed_sand_units = part1_simulate_sand_falls_into_abyss(y_abyss_threshold, &mut cave);
     print_cave(&cave);
     println!(
         "Part 1: Number of placed units of sand: {:?}",
         placed_sand_units
     );
+
+    // part 2 - for the sake of simplicity we add a real floor to the cave
+    // another option would be adjusting the collision check, avoiding adding many coords to the cave
+    let (y_abyss_threshold, mut cave) = build_cave(lines.clone());
+    for x in 0..700 {
+        cave.insert(
+            Coord {
+                x,
+                y: y_abyss_threshold + 2,
+            },
+            Material::Rock,
+        );
+    }
+    let sand_units_until_exit_reached = part2_simulate_sand_reaches_exit(y_abyss_threshold,
+                                                                             &mut cave);
+    print_cave(&cave);
+
+    println!(
+        "Part 2: Number of placed units of sand until exit reached: {:?}",
+        sand_units_until_exit_reached
+    );
 }
 
-fn simulate_sand_falling(y_abyss_threshold: usize, cave: &mut HashMap<Coord, Material>) -> u32 {
+fn part1_simulate_sand_falls_into_abyss(
+    y_abyss_threshold: i32,
+    cave: &mut HashMap<Coord, Material>,
+) -> u32 {
     let mut placed_sand_units = 0;
     loop {
         let mut fresh_sand = Coord { x: 500, y: 0 };
@@ -84,9 +107,51 @@ fn simulate_sand_falling(y_abyss_threshold: usize, cave: &mut HashMap<Coord, Mat
     }
 }
 
+fn part2_simulate_sand_reaches_exit(y_abyss_threshold: i32, cave: &mut HashMap<Coord, Material>) -> u32 {
+    let mut placed_sand_units = 0;
+    loop {
+        let mut fresh_sand = Coord { x: 500, y: 0 };
+        loop {
+            let down = Coord {
+                x: fresh_sand.x,
+                y: fresh_sand.y + 1,
+            };
+            let diagonal_left = Coord {
+                x: fresh_sand.x - 1,
+                y: fresh_sand.y + 1,
+            };
+            let diagonal_right = Coord {
+                x: fresh_sand.x + 1,
+                y: fresh_sand.y + 1,
+            };
+
+            if can_sand_fall_to(&cave, &down) {
+                fresh_sand = down;
+            } else if can_sand_fall_to(&cave, &diagonal_left) {
+                fresh_sand = diagonal_left;
+            } else if can_sand_fall_to(&cave, &diagonal_right) {
+                fresh_sand = diagonal_right;
+            } else {
+                // no more movement possible, place sand in fix position in cave
+                cave.insert(fresh_sand.clone(), Material::Sand);
+                placed_sand_units += 1;
+                if (fresh_sand == Coord { x: 500, y: 0}) {
+                    return placed_sand_units;
+                } else {
+                    break;
+                }
+            }
+            if fresh_sand.y >= y_abyss_threshold + 2 {
+                // sand falls into the abyss -> cancel
+                panic!("There still is an abyss {:?}", fresh_sand);
+            }
+        }
+    }
+}
+
 // see https://stackoverflow.com/a/70352626
-fn range_inclusive_updown(a: usize, b: usize) -> impl Iterator<Item = usize> {
-    let x: Box<dyn Iterator<Item = usize>>;
+fn range_inclusive_updown(a: i32, b: i32) -> impl Iterator<Item = i32> {
+    let x;
     if b > a {
         x = Box::new(a..=b);
     } else {
@@ -108,10 +173,10 @@ fn can_sand_fall_to(cave: &HashMap<Coord, Material>, coord: &Coord) -> bool {
 }
 
 fn print_cave(cave: &HashMap<Coord, Material>) {
-    let mut min_x = usize::MAX;
-    let mut max_x = usize::MIN;
-    let mut min_y = usize::MAX;
-    let mut max_y = usize::MIN;
+    let mut min_x = i32::MAX;
+    let mut max_x = i32::MIN;
+    let mut min_y = i32::MAX;
+    let mut max_y = i32::MIN;
 
     for c in cave.keys() {
         min_x = c.x.min(min_x);
@@ -137,7 +202,7 @@ fn print_cave(cave: &HashMap<Coord, Material>) {
     }
 }
 
-fn build_cave(lines: Split<char>) -> (usize, HashMap<Coord, Material>) {
+fn build_cave(lines: Split<char>) -> (i32, HashMap<Coord, Material>) {
     lazy_static! {
         static ref LINE: Regex = Regex::new(r"((?P<x>\d+),(?P<y>\d+))+").unwrap();
     }
@@ -148,11 +213,10 @@ fn build_cave(lines: Split<char>) -> (usize, HashMap<Coord, Material>) {
     for line in lines {
         let new_rocks = LINE
             .captures_iter(line)
-            .inspect(|it| println!("{:?}", it))
             .map(|it| match (it.name("x"), it.name("y")) {
                 (Some(x), Some(y)) => Coord {
-                    x: x.as_str().parse::<usize>().unwrap(),
-                    y: y.as_str().parse::<usize>().unwrap(),
+                    x: x.as_str().parse().unwrap(),
+                    y: y.as_str().parse().unwrap(),
                 },
                 _ => panic!("Malformed regex capture {:?}", it),
             })

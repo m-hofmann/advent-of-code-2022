@@ -63,6 +63,9 @@ pub fn day15() {
         });
     }
 
+    println!("Parsed input - investigating area covered by sensors.");
+
+    let target_line = 2000000;
     let mut staging = HashMap::new();
     for (coord, object) in objects.iter() {
         staging.insert(*coord, *object);
@@ -71,6 +74,11 @@ pub fn day15() {
                 let dist = (coord.x - beacon.x).abs() + (coord.y - beacon.y).abs();
 
                 for y in (coord.y - dist)..=(coord.y + dist) {
+                    // optimization: only populate target line to save memory and runtime
+                    if y != target_line {
+                        continue
+                    }
+
                     let x_span = dist - (coord.y - y).abs();
 
                     for x in (coord.x - x_span)..=(coord.x + x_span) {
@@ -87,19 +95,20 @@ pub fn day15() {
 
     objects = staging;
 
+    println!("Calculated coverage. Finding covered area on line {target_line}");
     //print_map(&mut objects);
 
-    let line = 2000000;
     let line_exclusions = objects
         .iter()
+        .filter(|(coord, _)| coord.y == target_line)
         .filter(|(_, &object)| match object {
             Sensor(_) => false,
             Beacon(_) => false,
             Object::Covered => true,
         })
-        .filter(|(coord, _)| coord.y == line)
+        .filter(|(coord, _)| coord.y == target_line)
         .count();
-    print!("In row where y={line}, {line_exclusions} positions cannot contain a beacon");
+    print!("In row where y={target_line}, {line_exclusions} positions cannot contain a beacon");
 }
 
 fn print_map(objects: &mut HashMap<Coord, Object>) {

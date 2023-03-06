@@ -20,7 +20,8 @@ impl Eq for Coord {}
 
 #[derive(Debug, Hash, Clone, Copy)]
 enum Object {
-    Sensor(Coord),
+    // beacon location and sensing distance (distance to beacon)
+    Sensor(Coord, u32),
     Beacon(Coord),
     Covered,
 }
@@ -54,7 +55,10 @@ pub fn day15() {
                         x: bx.as_str().parse().unwrap(),
                         y: by.as_str().parse().unwrap(),
                     };
-                    objects.insert(sensor_coord.clone(), Sensor(beacon_coord));
+                    objects.insert(
+                        sensor_coord.clone(),
+                        Sensor(beacon_coord, manhattan_dist(&sensor_coord, &beacon_coord)),
+                    );
                     objects.insert(beacon_coord.clone(), Beacon(sensor_coord));
                 }
                 _ => panic!("Cannot parse line {:?}", line),
@@ -70,7 +74,7 @@ pub fn day15() {
     for (coord, object) in objects.iter() {
         staging.insert(*coord, *object);
         match object {
-            Sensor(beacon) => {
+            Sensor(beacon, _) => {
                 let dist = (coord.x - beacon.x).abs() + (coord.y - beacon.y).abs();
 
                 for y in (coord.y - dist)..=(coord.y + dist) {
@@ -102,13 +106,57 @@ pub fn day15() {
         .iter()
         .filter(|(coord, _)| coord.y == target_line)
         .filter(|(_, &object)| match object {
-            Sensor(_) => false,
+            Sensor(_, _) => false,
             Beacon(_) => false,
             Object::Covered => true,
         })
         .filter(|(coord, _)| coord.y == target_line)
         .count();
-    print!("In row where y={target_line}, {line_exclusions} positions cannot contain a beacon");
+    println!(
+        "Part 1: In row where y={target_line}, {line_exclusions} positions cannot contain a beacon"
+    );
+
+    let max_size = 2 * target_line;
+
+    let sensor_coords = objects
+        .iter()
+        .filter(|(_, o)| match o {
+            Sensor(_, _) => true,
+            Beacon(_) => false,
+            Object::Covered => false,
+        })
+        .collect::<Vec<(&Coord, &Object)>>();
+
+    println!("Finding the only location not covered by beacons ... (this may take a long time)");
+
+    // accidentally ... volumetric?
+    let mut target: Option<Coord> = None;
+    'search: for y in 0..=max_size {
+        for x in 0..max_size {
+            if sensor_coords.iter().map(|(coord, &sensor)| {
+                let dist = manhattan_dist(&Coord { x, y }, coord);
+                (sensor, dist)
+            })
+                .all(|(sensor, dist)| match sensor {
+                    Sensor(_, reach) => reach < dist,
+                    Beacon(_) => false,
+                    Object::Covered => false,
+                }) {
+                target = Some(Coord { x, y });
+                println!("Found target coordinates at {:?}", target);
+                break 'search;
+            }
+        }
+    }
+
+    match target {
+        Some(coord) => {
+            let tuning_freq = coord.x * 4000000 + coord.y;
+            println!("Part 2: Tuning frequency is {tuning_freq}");
+        }
+        None => panic!("Search for distress signal unsuccessful"),
+    }
+    println!()
 }
 
 fn print_map(objects: &mut HashMap<Coord, Object>) {
@@ -127,7 +175,7 @@ fn print_map(objects: &mut HashMap<Coord, Object>) {
         for x in min_x..=max_x {
             match objects.get(&Coord { x, y }) {
                 Some(material) => match material {
-                    Sensor(_) => print!("S"),
+                    Sensor(_, _) => print!("S"),
                     Beacon(_) => print!("B"),
                     Object::Covered => print!("#"),
                 },
@@ -136,4 +184,8 @@ fn print_map(objects: &mut HashMap<Coord, Object>) {
         }
         println!();
     }
+}
+
+fn manhattan_dist(a: &Coord, b: &Coord) -> u32 {
+    return (a.x - b.x).abs() as u32 + (a.y - b.y).abs() as u32;
 }

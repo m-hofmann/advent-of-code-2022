@@ -132,20 +132,38 @@ pub fn day15() {
     // accidentally ... volumetric?
     let mut target: Option<Coord> = None;
     'search: for y in 0..=max_size {
-        for x in 0..max_size {
-            if sensor_coords.iter().map(|(coord, &sensor)| {
-                let dist = manhattan_dist(&Coord { x, y }, coord);
-                (sensor, dist)
-            })
-                .all(|(sensor, dist)| match sensor {
-                    Sensor(_, reach) => reach < dist,
-                    Beacon(_) => false,
-                    Object::Covered => false,
-                }) {
+        if y % 500 == 0 {
+            println!("y is at {y} y");
+        }
+        let mut x = 0;
+        'line: while x <= max_size {
+            let mut outside_all_sensors = true;
+            'sensors: for (coord, sensor) in sensor_coords.iter() {
+                match sensor {
+                    Sensor(_, reach) => {
+                        let dist = manhattan_dist(&Coord { x, y }, coord);
+                        if dist <= *reach {
+                            // if we reached the outer border of an area covered by a sensor
+                            // we can jump to the "opposite site" of the covered area immediately
+                            // and do not have to investigate every point within its bounds
+                            if x < coord.x {
+                                let x_dist = (coord.x - x).abs();
+                                x += 2 * x_dist;
+                            }
+                            outside_all_sensors = false;
+                            break 'sensors;
+                        }
+                    }
+                    Beacon(_) => panic!("Invalid object type"),
+                    Object::Covered => panic!("Invalid object type") ,
+                }
+            }
+            if outside_all_sensors {
                 target = Some(Coord { x, y });
                 println!("Found target coordinates at {:?}", target);
                 break 'search;
             }
+            x += 1;
         }
     }
 

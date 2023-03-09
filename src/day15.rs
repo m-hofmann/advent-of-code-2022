@@ -1,7 +1,7 @@
 use crate::day15::Object::{Beacon, Sensor};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 
 #[derive(Debug, Hash, Clone, Copy)]
@@ -116,8 +116,6 @@ pub fn day15() {
         "Part 1: In row where y={target_line}, {line_exclusions} positions cannot contain a beacon"
     );
 
-    let max_size = 2 * target_line;
-
     let sensor_coords = objects
         .iter()
         .filter(|(_, o)| match o {
@@ -129,52 +127,69 @@ pub fn day15() {
 
     println!("Finding the only location not covered by beacons ... (this may take a long time)");
 
-    // accidentally ... volumetric?
-    let mut target: Option<Coord> = None;
-    'search: for y in 0..=max_size {
-        if y % 500 == 0 {
-            println!("y is at {y} y");
-        }
-        let mut x = 0;
-        'line: while x <= max_size {
-            let mut outside_all_sensors = true;
-            'sensors: for (coord, sensor) in sensor_coords.iter() {
-                match sensor {
-                    Sensor(_, reach) => {
-                        let dist = manhattan_dist(&Coord { x, y }, coord);
-                        if dist <= *reach {
-                            // if we reached the outer border of an area covered by a sensor
-                            // we can jump to the "opposite site" of the covered area immediately
-                            // and do not have to investigate every point within its bounds
-                            if x < coord.x {
-                                let x_dist = (coord.x - x).abs();
-                                x += 2 * x_dist;
-                            }
-                            outside_all_sensors = false;
-                            break 'sensors;
-                        }
-                    }
-                    Beacon(_) => panic!("Invalid object type"),
-                    Object::Covered => panic!("Invalid object type") ,
-                }
+    let mut outline_coords = HashSet::new();
+    for (coord, obj) in objects.iter() {
+        match obj {
+            Sensor(_, reach) => {
+                let circle = circle_outline_plusone(coord, *reach);
+                circle.iter().for_each(|it| {
+                    outline_coords.insert(*it);
+                });
             }
-            if outside_all_sensors {
-                target = Some(Coord { x, y });
-                println!("Found target coordinates at {:?}", target);
-                break 'search;
-            }
-            x += 1;
+            Beacon(_) => {}
+            Object::Covered => {}
         }
     }
 
-    match target {
-        Some(coord) => {
-            let tuning_freq = coord.x * 4000000 + coord.y;
-            println!("Part 2: Tuning frequency is {tuning_freq}");
+    'search: for coord in outline_coords {
+        if coord.x <= 0 || coord.y <= 0 || coord.y > target_line * 2 || coord.x > target_line * 2 {
+            continue;
         }
-        None => panic!("Search for distress signal unsuccessful"),
+        let mut outside_all_sensors = true;
+        'sensors: for (&sensor_coord, &sensor) in sensor_coords.iter() {
+            match sensor {
+                Sensor(_, reach) => {
+                    let dist = manhattan_dist(&coord, &sensor_coord);
+                    if dist <= reach {
+                        outside_all_sensors = false;
+                        break 'sensors;
+                    }
+                }
+                Beacon(_) => panic!("Invalid object type"),
+                Object::Covered => panic!("Invalid object type"),
+            }
+        }
+        if outside_all_sensors {
+            println!("Found target coordinates at {:?}", coord);
+            println!("Tuning frequency is {:?}", coord.x as u64 * 4000000 + coord.y as u64);
+            break 'search;
+        }
     }
-    println!()
+}
+
+// gives points on outline (radius + 1) of a circle
+// uses manhattan distance
+fn circle_outline_plusone(center: &Coord, radius: u32) -> Vec<Coord> {
+    let mut outline = vec![];
+    let real_rad = (radius + 1) as i32;
+
+    for y in (center.y - real_rad)..=(center.y + real_rad) {
+        let x_span = real_rad - (center.y - y).abs();
+        if x_span == 0 {
+            outline.push(Coord { x: center.x, y })
+        } else {
+            outline.push(Coord {
+                x: center.x + x_span,
+                y,
+            });
+            outline.push(Coord {
+                x: center.x - x_span,
+                y,
+            });
+        }
+    }
+
+    return outline;
 }
 
 fn print_map(objects: &mut HashMap<Coord, Object>) {

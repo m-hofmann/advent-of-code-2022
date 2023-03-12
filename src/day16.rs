@@ -5,7 +5,6 @@ use std::fs;
 
 use itertools::Itertools;
 
-
 #[derive(Debug, Hash, Clone)]
 enum Action {
     MoveTo(String),
@@ -54,6 +53,9 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
                 if *state.flowrates.get(candidate).unwrap() == 0 {
                     continue
                 }
+                if state.open_valves.contains(&candidate) {
+                    continue
+                }
                 let cand_result = most_promising_candidates(
                     time_left - 1,
                     State {
@@ -69,11 +71,8 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
                     best_move_target = Some(candidate.clone());
                 }
             }
-            match (best_move_result, best_move_target) {
-                (Some(result), Some(target)) => {
-                    result_to_action.push((result, Action::MoveTo(target)));
-                },
-                (_, _) => {}
+            if let (Some(result), Some(target)) = (best_move_result, best_move_target) {
+                result_to_action.push((result, Action::MoveTo(target)));
             }
         }
 
@@ -102,25 +101,24 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
         let current_pressure_release: u32 = state
             .open_valves
             .iter()
-            .map(|it| state.flowrates.get(it))
-            .flatten()
+            .filter_map(|it| state.flowrates.get(it))
             .sum();
 
         let best_outcome = result_to_action.iter()
             .max_by_key(|(result, _)| result.max_pressure_released);
 
-        return match best_outcome {
+        match best_outcome {
             Some((result, action)) => {
 
-                let mut new_actions = result.best_actions.clone();
-                new_actions.insert(time_left, action.clone());
+                // let mut new_actions = result.best_actions.clone();
+                // new_actions.insert(time_left, action.clone());
                 BacktrackingResult {
                     max_pressure_released: result.max_pressure_released + current_pressure_release,
-                    best_actions: new_actions
+                    best_actions: HashMap::new()
                 }
             },
             None => panic!("Cannot backtrack further")
-        };
+        }
     }
 }
 
@@ -144,7 +142,7 @@ pub fn day16() {
                     let reachables = reachable
                         .as_str()
                         .split(", ")
-                        .map(|it| String::from(it))
+                        .map(String::from)
                         .collect::<Vec<String>>();
                     let flow_parsed = flow.as_str().parse().unwrap();
 
@@ -163,7 +161,7 @@ pub fn day16() {
         edges: &edges,
         flowrates: &flowrates,
     };
-    let time_left = 15;
+    let time_left = 20;
     let result = most_promising_candidates(time_left, start_state);
     println!(
         "Part 1: Total released pressure: {:?}",

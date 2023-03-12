@@ -172,40 +172,4 @@ pub fn day16() {
     for (min, action) in result.best_actions.iter().sorted_by_key(|&it| -(*it.0 as i32)) {
         println!("{:?}: {:?}", time_left - min, action);
     }
-
-    /*
-    for min in 1..30 {
-        println!("\n== Minute {min} ==");
-        let released_current_round: u32 = open_valves
-            .iter()
-            .map(|v| flowrates.get(*v))
-            .flatten()
-            .sum();
-        println!(
-            "Valves {:?} are open, releasing {:?} pressure",
-            open_valves, released_current_round
-        );
-        released_total += released_current_round;
-        if current != "AA" && !open_valves.contains(&current) {
-            // open valve
-            println!("You open valve {:?}", current);
-            open_valves.insert(current);
-        } else {
-            let best = edges
-                .get(current)
-                .unwrap()
-                .iter()
-                .map(|it| (it, flowrates.get(it)))
-                .max_by_key(|it| (*it).1);
-
-            match best {
-                Some((valve, _)) => {
-                    println!("You move to valve {valve}.");
-                    current = valve;
-                }
-                None => panic!("Stuck at {current}, no next best candidate"),
-            }
-        }
-    }
-     */
 }

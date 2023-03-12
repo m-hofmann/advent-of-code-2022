@@ -6,24 +6,24 @@ use std::fs;
 use itertools::Itertools;
 
 #[derive(Debug, Hash, Clone)]
-enum Action {
-    MoveTo(String),
-    OpenValve(String),
+enum Action<'a> {
+    MoveTo(&'a str),
+    OpenValve(&'a str),
     DoNothing,
 }
 
 #[derive(Debug, Clone)]
-struct BacktrackingResult {
+struct BacktrackingResult<'a > {
     max_pressure_released: u32,
-    best_actions: HashMap<u32, Action>,
+    best_actions: HashMap<u32, Action<'a>>,
 }
 
 #[derive(Debug, Clone)]
 struct State<'a> {
-    current: String,
-    open_valves: Vec<String>,
-    edges: &'a HashMap<String, Vec<String>>,
-    flowrates: &'a HashMap<String, u32>,
+    current: &'a str,
+    open_valves: Vec<&'a str>,
+    edges: &'a HashMap<&'a str, Vec<&'a str>>,
+    flowrates: &'a HashMap<&'a str, u32>,
 }
 
 // returns a tuple oflet (mut max_pressure_relea
@@ -43,23 +43,23 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
 
         // simulate move
         {
-            let empty = Vec::<String>::new();
+            let empty = Vec::<&str>::new();
             let currently_reachable = state.edges.get(&state.current).unwrap_or(&empty);
             let mut max_pressure_released = 0;
             let mut best_move_result: Option<BacktrackingResult> = None;
-            let mut best_move_target: Option<String> = None;
+            let mut best_move_target: Option<&str> = None;
 
             for candidate in currently_reachable.iter() {
                 if *state.flowrates.get(candidate).unwrap() == 0 {
                     continue
                 }
-                if state.open_valves.contains(&candidate) {
+                if state.open_valves.contains(candidate) {
                     continue
                 }
                 let cand_result = most_promising_candidates(
                     time_left - 1,
                     State {
-                        current: candidate.clone(),
+                        current: candidate,
                         open_valves: state.open_valves.clone(),
                         edges: state.edges,
                         flowrates: state.flowrates,
@@ -68,7 +68,7 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
                 if cand_result.max_pressure_released > max_pressure_released {
                     max_pressure_released = cand_result.max_pressure_released;
                     best_move_result = Some(cand_result);
-                    best_move_target = Some(candidate.clone());
+                    best_move_target = Some(candidate);
                 }
             }
             if let (Some(result), Some(target)) = (best_move_result, best_move_target) {
@@ -85,16 +85,16 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
         // open valve case
         {
             if !state.open_valves.contains(&state.current) {
-                let mut new_open_valves = Vec::from(state.open_valves.clone());
-                new_open_valves.push(state.current.clone());
+                let mut new_open_valves = state.open_valves.clone();
+                new_open_valves.push(state.current);
                 let cand_state = State {
-                    current: state.current.clone(),
+                    current: state.current,
                     open_valves: new_open_valves,
                     edges: state.edges,
                     flowrates: state.flowrates,
                 };
                 let open_result = most_promising_candidates(time_left - 1, cand_state);
-                result_to_action.push((open_result, Action::OpenValve(state.current.clone())));
+                result_to_action.push((open_result, Action::OpenValve(state.current)));
             }
         }
 
@@ -108,7 +108,7 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
             .max_by_key(|(result, _)| result.max_pressure_released);
 
         match best_outcome {
-            Some((result, action)) => {
+            Some((result, _)) => {
 
                 // let mut new_actions = result.best_actions.clone();
                 // new_actions.insert(time_left, action.clone());
@@ -133,8 +133,8 @@ pub fn day16() {
         static ref LINE: Regex = Regex::new(r"Valve (?P<valve>\w+) has flow rate=(?P<flow>\d+); tunnels lead to valves (?P<reachable>(\w+(,\s)?)+)").unwrap();
     }
 
-    let mut edges: HashMap<String, Vec<String>> = HashMap::new();
-    let mut flowrates: HashMap<String, u32> = HashMap::new();
+    let mut edges: HashMap<&str, Vec<&str>> = HashMap::new();
+    let mut flowrates: HashMap<&str, u32> = HashMap::new();
     for line in lines {
         LINE.captures(line).and_then::<Captures, _>(|cap| {
             match (cap.name("valve"), cap.name("flow"), cap.name("reachable")) {
@@ -142,12 +142,11 @@ pub fn day16() {
                     let reachables = reachable
                         .as_str()
                         .split(", ")
-                        .map(String::from)
-                        .collect::<Vec<String>>();
+                        .collect::<Vec<&str>>();
                     let flow_parsed = flow.as_str().parse().unwrap();
 
-                    flowrates.insert(String::from(valve.as_str()), flow_parsed);
-                    edges.insert(String::from(valve.as_str()), reachables);
+                    flowrates.insert(valve.as_str(), flow_parsed);
+                    edges.insert(valve.as_str(), reachables);
                 }
                 _ => panic!("Cannot parse line {:?}", line),
             }
@@ -156,12 +155,12 @@ pub fn day16() {
     }
 
     let start_state = State {
-        current: String::from("AA"),
+        current: "AA",
         open_valves: vec![],
         edges: &edges,
         flowrates: &flowrates,
     };
-    let time_left = 20;
+    let time_left = 30;
     let result = most_promising_candidates(time_left, start_state);
     println!(
         "Part 1: Total released pressure: {:?}",

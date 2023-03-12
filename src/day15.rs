@@ -192,6 +192,7 @@ fn circle_outline_plusone(center: &Coord, radius: u32) -> Vec<Coord> {
     return outline;
 }
 
+#[allow(dead_code)]
 fn print_map(objects: &mut HashMap<Coord, Object>) {
     let mut min_x = i32::MAX;
     let mut max_x = i32::MIN;

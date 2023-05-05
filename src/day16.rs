@@ -50,12 +50,7 @@ fn most_promising_candidates(time_left: u32, state: State) -> BacktrackingResult
             let mut best_move_target: Option<&str> = None;
 
             for candidate in currently_reachable.iter() {
-                if *state.flowrates.get(candidate).unwrap() == 0 {
-                    continue
-                }
-                if state.open_valves.contains(candidate) {
-                    continue
-                }
+
                 let cand_result = most_promising_candidates(
                     time_left - 1,
                     State {
@@ -160,7 +155,60 @@ pub fn day16() {
         edges: &edges,
         flowrates: &flowrates,
     };
-    let time_left = 30;
+
+    // Floyd-Warshall to collapse graph to a size that is more suitable for backtracking
+    let mut shortest_paths: HashMap<&str, HashMap<&str, usize>> = HashMap::new();
+    // initialize existing edges to weight 1 (= reachable in 1 minute)
+    for (&node, adjacent) in edges.iter() {
+        if !shortest_paths.contains_key(node) {
+            shortest_paths.insert(node, HashMap::new());
+        }
+        shortest_paths.entry(node).or_default().insert(node, 0);
+        for &neighbor in adjacent.into_iter() {
+            if !shortest_paths.contains_key(neighbor) {
+                shortest_paths.insert(neighbor, HashMap::new());
+            }
+            // undirected graph: Add both (node -> neighbor) as well as (neighbor -> node)
+            shortest_paths.entry(node).and_modify(|map| {
+                map.insert(neighbor, 1);
+            });
+            shortest_paths.entry(neighbor).and_modify(|map| {
+                map.insert(node, 1);
+            });
+        }
+    }
+    let nodes_only : Vec<&str> = shortest_paths.keys().copied().collect();
+    for &k in &nodes_only {
+        for &i in &nodes_only {
+            if !shortest_paths[i].contains_key(k) {
+                continue;
+            }
+
+            for &j in &nodes_only {
+                if i == j || !shortest_paths[k].contains_key(j) {
+                    continue;
+                }
+                let dist_i_k = shortest_paths[i][k];
+                let dist_k_j = shortest_paths[k][j];
+                match shortest_paths[i].contains_key(j) {
+                    true => {
+                        let dist_i_j = shortest_paths[i][j];
+                        if dist_i_j > dist_i_k + dist_k_j {
+                            shortest_paths.entry(i).and_modify(|map| {
+                                map.insert(j, dist_i_k + dist_k_j);
+                            });
+                        }
+                    }
+                    false =>  {
+                        shortest_paths.entry(i).or_default().insert(j, dist_i_k + dist_k_j);
+                    }
+                }
+            }
+        }
+    }
+    println!("shortest paths {:?}", shortest_paths);
+
+    let time_left = 17;
     let result = most_promising_candidates(time_left, start_state);
     println!(
         "Part 1: Total released pressure: {:?}",
